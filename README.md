@@ -2,8 +2,15 @@
 
 Implementation of Generative Adversarial Networks (GANs) and their variants in PyTorch.
 
-<div style="display: flex; justify-content: space-around;">
+<style>
+  .flex-container {
+    display: flex;
+    justify-content: space-around;
+    gap: 4px;
+  }
+</style>
 
+<div class="flex-container">
   <div style="text-align: center;">
     <img src="./assets/gan.gif" alt="GIF 1" width="150">
     <p>GAN</p>
