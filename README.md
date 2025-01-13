@@ -2,6 +2,35 @@
 
 Implementation of Generative Adversarial Networks (GANs) and their variants in PyTorch.
 
+<div style="display: flex; justify-content: space-around;">
+
+  <div style="text-align: center;">
+    <img src="./assets/gan.gif" alt="GIF 1" width="150">
+    <p>GAN</p>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="./assets/cgan.gif" alt="GIF 2" width="150">
+    <p>CGAN</p>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="./assets/dcgan.gif" alt="GIF 3" width="150">
+    <p>DCGAN</p>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="./assets/wgan.gif" alt="GIF 4" width="150">
+    <p>WGAN</p>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="./assets/lsgan.gif" alt="GIF 5" width="150">
+    <p>LSGAN</p>
+  </div>
+
+</div>
+
 ## Installation
 
 You can install the dependencies with uv.

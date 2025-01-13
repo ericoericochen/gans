@@ -54,10 +54,10 @@ class Discriminator(nn.Module):
             return nn.Sequential(*layers)
 
         self.discriminator = nn.Sequential(
-            block(1, 128, 4, stride=2, padding=1, norm=False),
+            block(1, 128, 3, stride=2, padding=1, norm=False),
             block(128, 256, 3, stride=2, padding=1, bias=False),
-            block(256, 512, 4, stride=2, padding=1, bias=False),
-            block(512, 1024, 4, stride=2, padding=1, bias=False),
+            block(256, 512, 3, stride=2, padding=1, bias=False),
+            block(512, 1024, 3, stride=2, padding=1, bias=False),
             nn.Conv2d(1024, 1, 4, stride=1, padding=0),
         )
 
