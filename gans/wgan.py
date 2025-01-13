@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import os
 from datetime import datetime
 import argparse
 
 from tqdm import tqdm
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import RMSprop
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 from torchvision.transforms import v2
@@ -16,33 +15,28 @@ import imageio.v2 as imageio
 
 
 class Generator(nn.Module):
-    def __init__(self, nc: int):
+    def __init__(self):
         super().__init__()
-        self.nc = nc
         self.generator = nn.Sequential(
-            nn.Linear(100 + nc, 1200),
-            nn.ReLU(),
-            nn.Linear(1200, 1200),
-            nn.ReLU(),
-            nn.Linear(1200, 784),
+            nn.Linear(100, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 1024),
+            nn.ReLU(inplace=True),
+            nn.Linear(1024, 784),
         )
 
-    def forward(self, z: torch.Tensor, y: torch.Tensor):
-        # generate onehot encoding for labels
-        y = F.one_hot(y, num_classes=self.nc).to(device).float()
-        x = torch.cat([z, y], dim=1)
-        x = self.generator(x)
+    def forward(self, z: torch.Tensor):
+        x = self.generator(z)
+        x = x.view(-1, 1, 28, 28)
         x = x.sigmoid()
-
         return x
 
 
 class Discriminator(nn.Module):
-    def __init__(self, nc: int, p: float = 0.0):
+    def __init__(self, p: float = 0.0):
         super().__init__()
-        self.nc = nc
         self.discriminator = nn.Sequential(
-            nn.Linear(784 + nc, 1024),
+            nn.Linear(784, 1024),
             nn.ReLU(inplace=True),
             nn.Dropout(p),
             nn.Linear(1024, 256),
@@ -51,30 +45,23 @@ class Discriminator(nn.Module):
             nn.Linear(256, 1),
         )
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor):
-        y = F.one_hot(y, num_classes=self.nc).to(device).float()
+    def forward(self, x: torch.Tensor):
         b = x.shape[0]
         x = x.view(b, -1)
-        x = torch.cat([x, y], dim=1)
         logit = self.discriminator(x).view(-1)
         return logit
 
 
 # Parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--lr", type=float, default=1e-3)
-parser.add_argument("--bs", type=int, default=128)
-parser.add_argument("--p", type=float, default=0.5)
+parser.add_argument("--lr", type=float, default=0.00005)
+parser.add_argument("--bs", type=int, default=64)
+parser.add_argument("--p", type=float, default=0.0)
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--epochs", type=int, default=10)
-parser.add_argument("--k", type=int, default=1)
+parser.add_argument("--k", type=int, default=5)
 parser.add_argument("--interval", type=int, default=1)
-
-try:
-    args = parser.parse_args()  # Try to parse command line arguments
-except:
-    # If running in interactive mode (e.g. Jupyter), use defaults
-    args = parser.parse_args([])
+args = parser.parse_args()
 
 # Setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -92,29 +79,27 @@ dataset = MNIST(
 dataloader = DataLoader(dataset, batch_size=args.bs, shuffle=True)
 
 # Models
-generator = Generator(nc=10).to(device)
-discriminator = Discriminator(nc=10, p=args.p).to(device)
+generator = Generator().to(device)
+discriminator = Discriminator(p=args.p).to(device)
 
 # Training setup
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-output_dir = os.path.join(os.path.dirname(__file__), "../outputs/cgan", timestamp)
+output_dir = os.path.join(os.path.dirname(__file__), "../outputs/wgan", timestamp)
 os.makedirs(output_dir, exist_ok=True)
 os.makedirs(os.path.join(output_dir, "gens"), exist_ok=True)
 
-criterion = nn.BCEWithLogitsLoss()
-g_optimizer = Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
-d_optimizer = Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999))
+g_optimizer = RMSprop(generator.parameters(), lr=args.lr)
+d_optimizer = RMSprop(discriminator.parameters(), lr=args.lr)
 
 # Training
 g_losses, d_losses, total_losses = [], [], []
 gen_images = []
 
-
 for i in range(args.epochs):
     epoch_g_loss = epoch_d_loss = epoch_total_loss = n_batches = 0
 
     pbar = tqdm(dataloader, desc=f"Epoch {i + 1}/{args.epochs}", leave=False)
-    for data, y in pbar:
+    for idx, (data, _) in enumerate(pbar):
         data = data.to(device)
         bs = data.shape[0]
         pos_labels = torch.ones(bs, device=device)
@@ -124,26 +109,27 @@ for i in range(args.epochs):
         d_loss = 0
         for _ in range(args.k):
             z = torch.randn(bs, 100, device=device)
-            fake = generator(z, y)
-            real_logits, fake_logits = discriminator(data, y), discriminator(
-                fake.detach(), y
-            )
-            disc_loss = criterion(real_logits, pos_labels) + criterion(
-                fake_logits, neg_labels
-            )
+            fake = generator(z)
+            real_scores, fake_scores = discriminator(data), discriminator(fake.detach())
+            disc_loss = -(torch.mean(real_scores) - torch.mean(fake_scores))
 
             d_optimizer.zero_grad()
             disc_loss.backward()
             d_optimizer.step()
-            d_loss += disc_loss
+            d_loss += disc_loss.detach()
+
+            # clip the weights of critic
+            for p in discriminator.parameters():
+                p.data.clamp_(-0.01, 0.01)
+
         d_loss = d_loss.mean()
 
         # Train generator
         z = torch.randn(bs, 100, device=device)
-        fake = generator(z, y)
-        real_logits = discriminator(data, y)
-        fake_logits = discriminator(fake, y)
-        g_loss = criterion(fake_logits, pos_labels)
+        fake = generator(z)
+        real_scores = discriminator(data)
+        fake_scores = discriminator(fake)
+        g_loss = -torch.mean(fake_scores)
 
         g_optimizer.zero_grad()
         g_loss.backward()
@@ -173,15 +159,13 @@ for i in range(args.epochs):
     # Generate samples
     if (i + 1) % args.interval == 0:
         with torch.no_grad():
-            # Generate samples with labels 0-9 repeated across rows
             z = torch.randn(100, 100, device=device)
-            y = torch.arange(10, device=device).repeat_interleave(10)
-            samples = generator(z, y).cpu()
+            samples = generator(z).cpu()
 
             fig, axs = plt.subplots(10, 10, figsize=(20, 20))
             plt.subplots_adjust(wspace=0, hspace=0)
             for idx, ax in enumerate(axs.flat):
-                ax.imshow(samples[idx].view(28, 28).numpy(), cmap="gray")
+                ax.imshow(samples[idx].permute(1, 2, 0).numpy(), cmap="gray")
                 ax.axis("off")
 
             plt.tight_layout(pad=0)
@@ -214,6 +198,9 @@ plt.close()
 images = []
 for filename in gen_images:
     images.append(imageio.imread(filename))
-imageio.mimsave(os.path.join(output_dir, "gen.gif"), images, duration=3)
+
+with imageio.get_writer(os.path.join(output_dir, "gen.gif"), duration=5) as writer:
+    for image in images:
+        writer.append_data(image)
 
 print(f"Training complete. Outputs saved to: {output_dir}")
