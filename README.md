@@ -2,41 +2,17 @@
 
 Implementation of Generative Adversarial Networks (GANs) and their variants in PyTorch.
 
-<style>
-  .flex-container {
-    display: flex;
-    justify-content: space-around;
-    gap: 4px;
-  }
-</style>
+<p align="center">
+  <img src="./assets/gan.gif" alt="GAN" width="150" />
+  <img src="./assets/cgan.gif" alt="CGAN" width="150" />
+  <img src="./assets/dcgan.gif" alt="DCGAN" width="150" />
+  <img src="./assets/wgan.gif" alt="WGAN" width="150" />
+  <img src="./assets/lsgan.gif" alt="LSGAN" width="150" />
+</p>
 
-<div class="flex-container">
-  <div style="text-align: center;">
-    <img src="./assets/gan.gif" alt="GIF 1" width="150">
-    <p>GAN</p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="./assets/cgan.gif" alt="GIF 2" width="150">
-    <p>CGAN</p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="./assets/dcgan.gif" alt="GIF 3" width="150">
-    <p>DCGAN</p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="./assets/wgan.gif" alt="GIF 4" width="150">
-    <p>WGAN</p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="./assets/lsgan.gif" alt="GIF 5" width="150">
-    <p>LSGAN</p>
-  </div>
-
-</div>
+<p align="center">
+  <i>GAN | CGAN | DCGAN | WGAN | LSGAN</i>
+</p>
 
 ## Installation
 
